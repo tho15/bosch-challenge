@@ -558,7 +558,7 @@ int next_state2go(
 	int ds = cars[car_ahead_id].car_s - car_state[0];
 	int v = cars[car_ahead_id].get_car_vel();
 	
-	int fl_cost = 30.0/ds + (max_speed - v)/max_speed; // + 1.0 + car_state[1]/100.0;
+	int fl_cost = 20.0/ds + (max_speed - v)/max_speed; // + 1.0 + car_state[1]/100.0;
 	
 	// calculate the cost of left lane change
 	double lcl_cost = 100.0;
@@ -568,19 +568,19 @@ int next_state2go(
 	if (0 != get_lane_num(car_state[3], td) ) {
 		lcl_cost = 0.0;
 		
-		car_ahead_id = get_closing_car_ahead(cars, car_state[3]-4.0, car_state[0], 35);
+		car_ahead_id = get_closing_car_ahead(cars, car_state[3]-4.0, car_state[0], 60);
 		if(car_ahead_id >= 0) {
 			ds = cars[car_ahead_id].car_s - car_state[0];
 			v  = cars[car_ahead_id].get_car_vel();
-			lcl_cost += 35.0/ds + (max_speed - v)/max_speed;
+			lcl_cost += 25.0/ds + (max_speed - v)/max_speed;
 		}
 		
-		car_behind_id = get_closing_car_behind(cars, car_state[3]-4.0, car_state[0], 15);
+		car_behind_id = get_closing_car_behind(cars, car_state[3]-4.0, car_state[0], 10);
 		if(car_behind_id >= 0) {
 			ds = cars[car_behind_id].car_s - car_state[0]; 
 			if(ds > 5) { // if too close, don't even try 
 				v = cars[car_behind_id].get_car_vel();
-				lcl_cost += 15.0/ds + v/100.0;
+				lcl_cost += 10.0/ds + v/100.0;
 			} else {
 				lcl_cost += 10.0;
 			}
@@ -592,19 +592,19 @@ int next_state2go(
 	if (2 != get_lane_num(car_state[3], td) ) {
 		lcr_cost = 0.0;
 		
-		car_ahead_id = get_closing_car_ahead(cars, car_state[3]+4.0, car_state[0], 35);
+		car_ahead_id = get_closing_car_ahead(cars, car_state[3]+4.0, car_state[0], 60);
 		if(car_ahead_id >= 0) {
 			ds = cars[car_ahead_id].car_s - car_state[0];
 			v  = cars[car_ahead_id].get_car_vel();
-			lcr_cost += 35.0/ds + (max_speed - v)/max_speed;
+			lcr_cost += 25.0/ds + (max_speed - v)/max_speed;
 		}
 		
-		car_behind_id = get_closing_car_behind(cars, car_state[3]+4.0, car_state[0], 15);
+		car_behind_id = get_closing_car_behind(cars, car_state[3]+4.0, car_state[0], 10);
 		if(car_behind_id >= 0) {
 			ds = cars[car_behind_id].car_s - car_state[0]; 
 			if(ds > 5) {  
 				v = cars[car_behind_id].get_car_vel();
-				lcr_cost += 15.0/ds + v/100.0;
+				lcr_cost += 10.0/ds + v/100.0;
 			} else { // if too close, don't even try
 				lcr_cost += 10.0;
 			}
@@ -686,7 +686,7 @@ int jmt_trajectory(
 	
 	if(CAR_STATE[0] == _CS_LCL) {
 		double td; 
-		if(get_lane_num(car_state[3], td) == CAR_STATE[1]) {
+		if(get_lane_num(car_state[6], td) == CAR_STATE[1]) {
 			cout << "change LCL to KL state" << endl;
 			next_st = _CS_KL;
 			//CAR_STATE[0] = _CS_KL;
@@ -696,7 +696,7 @@ int jmt_trajectory(
 		}
 	} else if(CAR_STATE[0] == _CS_LCR) {
 		double td; 
-		if(get_lane_num(car_state[3], td) == CAR_STATE[1]) {
+		if(get_lane_num(car_state[6], td) == CAR_STATE[1]) {
 			cout << "change LCR to KL state" << endl;
 			//CAR_STATE[0] = _CS_KL;
 			next_st = _CS_KL;
@@ -721,7 +721,7 @@ int jmt_trajectory(
     		cars[closing_car].print();
     		double ds = get_s_distance(car_state[0], cars[closing_car].car_s);
     		//num_steps = 150;
-    		s_goal[0] = s_start[0] + ds + cars[closing_car].get_car_vel()*num_steps - 30;
+    		s_goal[0] = s_start[0] + ds + cars[closing_car].get_car_vel()*num_steps - 20;
     		s_goal[1] = cars[closing_car].get_car_vel();
     	}    		
 #if 0    
@@ -798,7 +798,7 @@ int jmt_trajectory(
 		double s_a = quintic_eval_a(jmt_s_params, t);
 		
 		if(t < num_reuse) {  // reuse previous path
-			cout << "spline s is: " << s << " " << next_sva[pidx+t][0] << " " << s0;
+			//cout << "spline s is: " << s << " " << next_sva[pidx+t][0] << " " << s0;
 			s   = next_sva[pidx+t][0] - s0;
 			if(s < 0) s += max_s;
 			cout << " reuse s is: " << s << endl;
@@ -820,7 +820,7 @@ int jmt_trajectory(
 			double da = ds - pv;
 			double acc = fabs(da) * 50 * 50;
 			if(acc > 9.5) {
-				cout << "acc exceeded!!!!! " << s << " " << previous_s << " " << acc << endl;
+				//cout << "acc exceeded!!!!! " << s << " " << previous_s << " " << acc << endl;
 			
 				while(acc > 9.5) {
 					s = s - 0.001*(fabs(da)/da);
@@ -829,7 +829,7 @@ int jmt_trajectory(
 					acc = fabs(da) * 50 * 50;
 				}
 				
-				cout << "reduce acc to: " << acc << " s=" << s << endl;
+				//cout << "reduce acc to: " << acc << " s=" << s << endl;
 			}
 		}
 		
@@ -837,7 +837,7 @@ int jmt_trajectory(
 		if(t > 0) { // check result speed
 			double dxy = distance(px, py, xy[0], xy[1]);
 			if(dxy > max_speed) {
-				cout << "fitting dist too high!, reduce s.." << dxy << endl;
+				//cout << "fitting dist too high!, reduce s.." << dxy << endl;
 				while(dxy > max_speed) {
 					s -= 0.01;
 					xy = getXY_splines_fit(s, d, spline_fit_sx, spline_fit_sy, spline_fit_sdx, spline_fit_sdy);
@@ -950,14 +950,14 @@ int main() {
           	auto sensor_fusion = j[1]["sensor_fusion"];
           	
           	cars.clear();
-          	cout << "cars on road: " << endl;
+          	//cout << "cars on road: " << endl;
           	for(int i = 0; i < sensor_fusion.size(); ++i) {
           		Car car(sensor_fusion[i][0], sensor_fusion[i][1], sensor_fusion[i][2], sensor_fusion[i][3], sensor_fusion[i][4],
           			    sensor_fusion[i][5], sensor_fusion[i][6]);
           		cars.push_back(car);
-          		car.print();
+          		//car.print();
           	}
-          	cout << endl;
+          	//cout << endl;
           	int closing_car = get_closing_car_ahead(cars, car_d, car_s, 30);
           	if(closing_car >= 0) {
           		cout << "closing car: ";
@@ -975,7 +975,7 @@ int main() {
 			if(prev_sdva.size() == 0) { // car just start!
 				double td;
 				CAR_STATE = { _CS_KL, get_lane_num(car_d, td) };
-				vector<double> car_state = {car_s, 0, 0, car_d, 0, 0};
+				vector<double> car_state = {car_s, 0, 0, car_d, 0, 0, car_d};
 
 				jmt_trajectory(car_state, cars, closing_car, num_traj_steps, next_x_vals, next_y_vals, prev_sdva, -1);
 			} else {	
@@ -995,7 +995,7 @@ int main() {
 				double est_da = (d_v2 - d_v1) - (d_v1 - d_v0);
 				cout << "idx is: " << idx << endl;
 				if(idx > 50 || (closing_car >= 0 && CAR_STATE[0] == _CS_KL)) {																	
-					vector<double> car_state = {prev_sdva[idx][0], prev_sdva[idx][1], prev_sdva[idx][2], prev_sdva[idx][3], prev_sdva[idx][4], prev_sdva[idx][5]};
+					vector<double> car_state = {prev_sdva[idx][0], prev_sdva[idx][1], prev_sdva[idx][2], prev_sdva[idx][3], prev_sdva[idx][4], prev_sdva[idx][5], car_d};
 					
 					//prev_sdva.clear();
 					jmt_trajectory(car_state, cars, closing_car, num_traj_steps, next_x_vals, next_y_vals, prev_sdva, idx);							
