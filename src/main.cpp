@@ -555,8 +555,8 @@ int next_state2go(
 )
 {
 	// calculate the cost of following current lane traffic
-	int ds = cars[car_ahead_id].car_s - car_state[0];
-	int v = cars[car_ahead_id].get_car_vel();
+	double ds = cars[car_ahead_id].car_s - car_state[0];
+	double v = cars[car_ahead_id].get_car_vel();
 	
 	int fl_cost = 20.0/ds + (max_speed - v)/max_speed; // + 1.0 + car_state[1]/100.0;
 	
