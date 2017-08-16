@@ -551,14 +551,15 @@ bool safe_to_right_lane(const vector<Car> &cars, double car_d, double car_s, dou
 int next_state2go(
 	const vector<Car> &cars,
 	const vector<double> car_state,
-	int car_ahead_id
+	vector<int> &closing_car_info // closing car ahead {current lane, left lane, right lane}
 )
 {
 	// calculate the cost of following current lane traffic
+	int car_ahead_id = closing_car_info[0];
 	double ds = cars[car_ahead_id].car_s - car_state[0];
 	double v = cars[car_ahead_id].get_car_vel();
 	
-	int fl_cost = 20.0/ds + (max_speed - v)/max_speed; // + 1.0 + car_state[1]/100.0;
+	int fl_cost = 25.0/ds + (max_speed - v)/max_speed; // + 1.0 + car_state[1]/100.0;
 	
 	// calculate the cost of left lane change
 	double lcl_cost = 100.0;
@@ -572,7 +573,12 @@ int next_state2go(
 		if(car_ahead_id >= 0) {
 			ds = cars[car_ahead_id].car_s - car_state[0];
 			v  = cars[car_ahead_id].get_car_vel();
-			lcl_cost += 25.0/ds + (max_speed - v)/max_speed;
+			lcl_cost += 30.0/ds + (max_speed - v)/max_speed;
+			if(ds < 35) {
+				closing_car_info[1] = car_ahead_id;
+			}
+		} else {
+			closing_car_info.push_back(-1);
 		}
 		
 		car_behind_id = get_closing_car_behind(cars, car_state[3]-4.0, car_state[0], 10);
@@ -596,13 +602,16 @@ int next_state2go(
 		if(car_ahead_id >= 0) {
 			ds = cars[car_ahead_id].car_s - car_state[0];
 			v  = cars[car_ahead_id].get_car_vel();
-			lcr_cost += 25.0/ds + (max_speed - v)/max_speed;
+			lcr_cost += 30.0/ds + (max_speed - v)/max_speed;
+			if(ds < 35) {
+				closing_car_info[2] = car_ahead_id;
+			}
 		}
 		
-		car_behind_id = get_closing_car_behind(cars, car_state[3]+4.0, car_state[0], 10);
+		car_behind_id = get_closing_car_behind(cars, car_state[3]+4.0, car_state[0], 15);
 		if(car_behind_id >= 0) {
 			ds = cars[car_behind_id].car_s - car_state[0]; 
-			if(ds > 5) {  
+			if(ds > 6) {  
 				v = cars[car_behind_id].get_car_vel();
 				lcr_cost += 10.0/ds + v/100.0;
 			} else { // if too close, don't even try
@@ -671,10 +680,10 @@ int jmt_trajectory(
 	vector<double> s_goal = {goal_s, max_dist_per_step, 0};
 	
 	double goal_d = 2.0;
-	if(car_state[3] > 8.0) {
+	if(car_state[6] > 8.0) {
 		goal_d = 9.85;
 	}
-	else if(car_state[3] > 4.0) {
+	else if(car_state[6] > 4.0) {
 		goal_d = 6;
 	}
 	
@@ -706,66 +715,48 @@ int jmt_trajectory(
 		}
 	}
     else if(closing_car >= 0 && cars[closing_car].get_car_vel() < max_speed) {
-    	double td; 	
-    	next_st = next_state2go(cars, car_state, closing_car);
+    	double td;
+    	vector<int> closing_car_info;
+    	
+    	closing_car_info.push_back(closing_car);
+    	closing_car_info.push_back(-1);
+    	closing_car_info.push_back(-1);
+    	
+    	next_st = next_state2go(cars, car_state, closing_car_info);
     	if(_CS_LCL == next_st) {
     		cout << "now changing to left lane!" << endl;
     		d_goal[0] -= 4.0;
     		CAR_STATE[1] = get_lane_num(d_goal[0], td);
+    		if(closing_car_info[1] >= 0) {
+    			int lcar_id = closing_car_info[1];
+    			cout << "following left lane car ahead " << lcar_id << endl;
+    			double ds = get_s_distance(car_state[0], cars[lcar_id].car_s);
+    			s_goal[0] = s_start[0] + ds + cars[lcar_id].get_car_vel()*num_steps - 35;
+    			s_goal[1] = cars[lcar_id].get_car_vel();
+    		} else {
+    			s_goal[0] -= 20;
+    		}
     	} else if(_CS_LCR == next_st) {
     		cout << "now changing to right lane!" << endl;
     		d_goal[0] += 4.0;
     		CAR_STATE[1] = get_lane_num(d_goal[0], td);
+    		if(closing_car_info[2] >= 0) {
+    			int rcar_id = closing_car_info[2];
+    			cout << "following right lane car ahead " << rcar_id << endl;
+    			double ds = get_s_distance(car_state[0], cars[rcar_id].car_s);
+    			s_goal[0] = s_start[0] + ds + cars[rcar_id].get_car_vel()*num_steps - 35;
+    			s_goal[1] = cars[rcar_id].get_car_vel();
+    		} else {
+    			s_goal[0] -= 20;
+    		}
     	} else {
      		cout << "following car ahead: " << closing_car << endl;
     		cars[closing_car].print();
     		double ds = get_s_distance(car_state[0], cars[closing_car].car_s);
     		//num_steps = 150;
-    		s_goal[0] = s_start[0] + ds + cars[closing_car].get_car_vel()*num_steps - 20;
+    		s_goal[0] = s_start[0] + ds + cars[closing_car].get_car_vel()*num_steps - 25;
     		s_goal[1] = cars[closing_car].get_car_vel();
     	}    		
-#if 0    
-    	if(safe_to_left_lane(cars, car_state[3], car_state[0], car_state[1])) {
-    		cout << "now changing to left lane!" << endl;
-    		d_goal[0] -= 4.0;
-    		/* if(CAR_STATE[0] == _CS_KL_FL) {
-    			s_goal[1] = cars[closing_car].get_car_vel();
-    			s_goal[0] = s_start[0] + cars[closing_car].get_car_vel()*num_steps;
-    		} */
-    		//if(d_goal[0] == 2.0) {
-    		//	d_goal[0] -= 0.1;
-    		//}
-    		//CAR_STATE[0] = _CS_LCL;
-    		next_st = _CS_LCL;
-    		CAR_STATE[1] = get_lane_num(d_goal[0], td);
-    	}
-    	else if(safe_to_right_lane(cars, car_state[3], car_state[0], car_state[1])) {
-    		cout << "now changing to right lane!" << endl;
-    		d_goal[0] += 4.0;
-    		/* if(CAR_STATE[0] == _CS_KL_FL) {
-    			s_goal[1] = cars[closing_car].get_car_vel();
-    			s_goal[0] = s_start[0] + cars[closing_car].get_car_vel()*num_steps;
-    		} */
-    		//if(d_goal[0] == 10.0) {
-    		//	d_goal[0] -= 0.1;
-    		//}
-    		//CAR_STATE[0] = _CS_LCR;
-    		next_st = _CS_LCR;
-    		CAR_STATE[1] = get_lane_num(d_goal[0], td);
-    	} else {
-     		cout << "following car ahead: " << closing_car << endl;
-    		cars[closing_car].print();
-    		next_st = _CS_KL_FL;
-    		//klfl_get_best_jmt(car_state[0], s_start, cars[closing_car]);
-    		//s_goal[0] = s_start[0] + cars[closing_car].get_car_vel()*num_steps;
-    		double ds = get_s_distance(car_state[0], cars[closing_car].car_s);
-    		//num_steps = 150;
-    		s_goal[0] = s_start[0] + ds + cars[closing_car].get_car_vel()*num_steps - 30;
-    		s_goal[1] = cars[closing_car].get_car_vel();
-    		//pidx = -1;
-    		//next_sva.clear();    		
-		}
-#endif   	
     }
     else {
     	cout << "nothing changed, keep going!" << endl;
@@ -801,7 +792,7 @@ int jmt_trajectory(
 			//cout << "spline s is: " << s << " " << next_sva[pidx+t][0] << " " << s0;
 			s   = next_sva[pidx+t][0] - s0;
 			if(s < 0) s += max_s;
-			cout << " reuse s is: " << s << endl;
+			//cout << " reuse s is: " << s << endl;
 			s_v = next_sva[pidx+t][1];
 			s_a = next_sva[pidx+t][2];
 		}
