@@ -559,7 +559,7 @@ int next_state2go(
 	double ds = cars[car_ahead_id].car_s - car_state[0];
 	double v = cars[car_ahead_id].get_car_vel();
 	
-	int fl_cost = 25.0/ds + (max_speed - v)/max_speed; // + 1.0 + car_state[1]/100.0;
+	int fl_cost = 20.0/ds + (max_speed - v)/max_speed; // + 1.0 + car_state[1]/100.0;
 	
 	// calculate the cost of left lane change
 	double lcl_cost = 100.0;
@@ -731,7 +731,7 @@ int jmt_trajectory(
     			int lcar_id = closing_car_info[1];
     			cout << "following left lane car ahead " << lcar_id << endl;
     			double ds = get_s_distance(car_state[0], cars[lcar_id].car_s);
-    			s_goal[0] = s_start[0] + ds + cars[lcar_id].get_car_vel()*num_steps - 35;
+    			s_goal[0] = s_start[0] + ds + cars[lcar_id].get_car_vel()*num_steps - 30;
     			s_goal[1] = cars[lcar_id].get_car_vel();
     		} else {
     			s_goal[0] -= 20;
@@ -744,7 +744,7 @@ int jmt_trajectory(
     			int rcar_id = closing_car_info[2];
     			cout << "following right lane car ahead " << rcar_id << endl;
     			double ds = get_s_distance(car_state[0], cars[rcar_id].car_s);
-    			s_goal[0] = s_start[0] + ds + cars[rcar_id].get_car_vel()*num_steps - 35;
+    			s_goal[0] = s_start[0] + ds + cars[rcar_id].get_car_vel()*num_steps - 30;
     			s_goal[1] = cars[rcar_id].get_car_vel();
     		} else {
     			s_goal[0] -= 20;
@@ -754,7 +754,7 @@ int jmt_trajectory(
     		cars[closing_car].print();
     		double ds = get_s_distance(car_state[0], cars[closing_car].car_s);
     		//num_steps = 150;
-    		s_goal[0] = s_start[0] + ds + cars[closing_car].get_car_vel()*num_steps - 25;
+    		s_goal[0] = s_start[0] + ds + cars[closing_car].get_car_vel()*num_steps - 20;
     		s_goal[1] = cars[closing_car].get_car_vel();
     	}    		
     }
