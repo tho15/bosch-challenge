@@ -35,7 +35,9 @@ enum {
 	_CS_KL,
 	_CS_KL_FL,
 	_CS_LCL,
-	_CS_LCR
+	_CS_LCR,
+	_CS_LCLL,
+	_CS_LCRR
 };
 
 vector<int>  CAR_STATE;  // { state, target lane }
@@ -518,7 +520,8 @@ bool safe_to_left_lane(const vector<Car> &cars, double car_d, double car_s, doub
 		return false;  // can't go left
 	
 	// if there is no car in 10 meters ahead and following, saft to change lane
-	auto left_cars = get_cars_in_lane_segment(cars, car_s, car_d-4.0, 35, 15);
+	//auto left_cars = get_cars_in_lane_segment(cars, car_s, car_d-4.0, 35, 15);
+	auto left_cars = get_cars_in_lane_segment(cars, car_s, car_d-4.0, 18, 8);
 	cout << "left cars found: " << left_cars.size() << endl;
 	if(left_cars.empty()) return true;
 	
@@ -537,7 +540,8 @@ bool safe_to_right_lane(const vector<Car> &cars, double car_d, double car_s, dou
 		return false;  // can't go left
 	
 	// if there is no car in 10 meters ahead and following, saft to change lane
-	auto left_cars = get_cars_in_lane_segment(cars, car_s, car_d+4.0, 35, 15);
+	//auto left_cars = get_cars_in_lane_segment(cars, car_s, car_d+4.0, 35, 15);
+	auto left_cars = get_cars_in_lane_segment(cars, car_s, car_d+4.0, 18, 8);
 	cout << "right cars found: " << left_cars.size() << endl;
 	if(left_cars.empty()) return true;
 	
@@ -584,9 +588,9 @@ int next_state2go(
 		car_behind_id = get_closing_car_behind(cars, car_state[3]-4.0, car_state[0], 10);
 		if(car_behind_id >= 0) {
 			ds = cars[car_behind_id].car_s - car_state[0]; 
-			if(ds > 5) { // if too close, don't even try 
+			if(ds > 4) { // if too close, don't even try 
 				v = cars[car_behind_id].get_car_vel();
-				lcl_cost += 10.0/ds + v/100.0;
+				lcl_cost += 5.0/ds + v/50.0;
 			} else {
 				lcl_cost += 10.0;
 			}
@@ -611,9 +615,9 @@ int next_state2go(
 		car_behind_id = get_closing_car_behind(cars, car_state[3]+4.0, car_state[0], 15);
 		if(car_behind_id >= 0) {
 			ds = cars[car_behind_id].car_s - car_state[0]; 
-			if(ds > 6) {  
+			if(ds > 4) {  
 				v = cars[car_behind_id].get_car_vel();
-				lcr_cost += 10.0/ds + v/100.0;
+				lcr_cost += 5.0/ds + v/50.0;
 			} else { // if too close, don't even try
 				lcr_cost += 10.0;
 			}
@@ -633,13 +637,103 @@ int next_state2go(
     }	
 }
 
+// even we are in the keep_line state, try to find the better lane
+int kl_find_better_state2go(
+	const vector<Car> &cars,
+	const vector<double> car_state
+)
+{
+	// calculate the cost for all lanes by looking forward 100 meters and backward 10 meters
+	int car_ahead_id, car_behind_id;
+	int min_cost_lane = 0;
+	double td, ds, v;
+	double min_cost, my_lane_cost;
+	
+	int my_lane = get_lane_num(car_state[3], td);
+	
+	// lane 1
+	car_ahead_id = get_closing_car_ahead(cars, 2, car_state[0], 100);
+	double lane1_cost = 0.0;
+	
+	if(car_ahead_id >= 0) {
+		ds = cars[car_ahead_id].car_s - car_state[0];
+		v  = cars[car_ahead_id].get_car_vel();
+		lane1_cost += 100.0/ds + (max_speed - v)/max_speed;
+	}
+	car_behind_id = get_closing_car_behind(cars, 2, car_state[0], 10.0*my_lane);
+	if(car_behind_id >= 0) {
+		lane1_cost += 5.0;
+	}
+	min_cost = lane1_cost;
+	if(my_lane == 0) {
+		my_lane_cost = lane1_cost;
+	}
+	
+	double lane2_cost = 0.0;
+	car_ahead_id = get_closing_car_ahead(cars, 6, car_state[0], 100);
+	if(car_ahead_id >= 0) {
+		ds = cars[car_ahead_id].car_s - car_state[0];
+		v  = cars[car_ahead_id].get_car_vel();
+		lane2_cost += 100.0/ds + (max_speed - v)/max_speed;
+	}
+	car_behind_id = get_closing_car_behind(cars, 6, car_state[0], 10.0*abs(my_lane-1.0));
+	if(car_behind_id >= 0) {
+		lane2_cost += 5.0;
+	}
+	if(my_lane == 1) {
+		my_lane_cost = lane2_cost;
+	}
+	
+	if(lane2_cost < min_cost) {
+		min_cost_lane = 1;
+		min_cost = lane2_cost;
+	}
+	
+	double lane3_cost = 0.0;
+	car_ahead_id = get_closing_car_ahead(cars, 10, car_state[0], 100);
+	if(car_ahead_id >= 0) {
+		ds = cars[car_ahead_id].car_s - car_state[0];
+		v  = cars[car_ahead_id].get_car_vel();
+		lane3_cost += 100.0/ds + (max_speed - v)/max_speed;
+	}
+	car_behind_id = get_closing_car_behind(cars, 10, car_state[0], 10.0*(2.0-my_lane));
+	if(car_behind_id >= 0) {
+		lane3_cost += 5.0;
+	}
+	if(my_lane == 2) {
+		my_lane_cost = lane3_cost;
+	}
+	
+	if(lane3_cost < min_cost) {
+		min_cost_lane = 2;
+		min_cost = lane3_cost;
+	}
+	
+	cout << "KL lane cost: " << lane1_cost << " " << lane2_cost << " " << lane3_cost << " min: " << min_cost << " " << min_cost_lane << endl;
+	if(min_cost_lane == my_lane || my_lane_cost == min_cost) {
+		return _CS_KL;
+	}
+	else if(min_cost_lane - my_lane == -1) {
+		return _CS_LCL;
+	}
+	else if(min_cost_lane - my_lane == 1) {
+		return _CS_LCR;
+	}
+	else if(min_cost_lane - my_lane == -2 && safe_to_left_lane(cars, car_state[3], car_state[0], car_state[1])) {
+		return _CS_LCLL;
+	}
+	else if(min_cost_lane - my_lane == 2 && safe_to_right_lane(cars, car_state[3], car_state[0], car_state[1])) {
+		return _CS_LCRR;
+	}
+	return _CS_KL;
+}
 
 // car_start is vector of {car_s, car_speed, car_a, car_d, car_d_speed, car_d_a}
 int jmt_trajectory(
 	const vector<double> &car_state,
 	const vector<Car> &cars,
 	const int closing_car,
-	int num_steps,
+	int num_steps, 
 	vector<double> &next_x,
 	vector<double> &next_y,
 	vector<vector<double> > &next_sva,
@@ -714,6 +808,17 @@ int jmt_trajectory(
 			d_goal[0] = CAR_STATE[1]*4.0 + 2.0;
 		}
 	}
+	else if(CAR_STATE[0] == _CS_LCLL || CAR_STATE[0] == _CS_LCRR) {
+		double td; 
+		if(get_lane_num(car_state[6], td) == CAR_STATE[1]) {
+			cout << "change " << CAR_STATE[0] << " to KL state" << endl;
+			next_st = _CS_KL;
+			//CAR_STATE[0] = _CS_KL;
+		} else {
+			cout << "keeping in lane change state!" << endl;
+			d_goal[0] = CAR_STATE[1]*4.0 + 2.0;
+		}
+	}
     else if(closing_car >= 0 && cars[closing_car].get_car_vel() < max_speed) {
     	double td;
     	vector<int> closing_car_info;
@@ -759,8 +864,30 @@ int jmt_trajectory(
     	}    		
     }
     else {
-    	cout << "nothing changed, keep going!" << endl;
-    	next_st = _CS_KL;
+    	//cout << "nothing changed, keep going!" << endl;
+    	//next_st = _CS_KL;
+    	next_st = kl_find_better_state2go(cars, car_state);
+    	double td;
+    	if(_CS_LCL == next_st) {
+    		cout << "change KL to LCL, left lane better!" << endl;
+    		d_goal[0] -= 4.0;
+    		CAR_STATE[1] = get_lane_num(d_goal[0], td);
+    	} else if(_CS_LCR == next_st) {
+    		cout << "change KL to LCR, right lane better!" << endl;
+    		d_goal[0] += 4.0;
+    		CAR_STATE[1] = get_lane_num(d_goal[0], td);
+    	} else if(_CS_LCLL == next_st) {
+    		cout << "change KL to LCLL, left left lane better!" << endl;
+    		d_goal[0] -= 8.0;
+    		CAR_STATE[1] = get_lane_num(d_goal[0], td);
+    	} else if(_CS_LCRR == next_st) {
+    		cout << "change KL to LCRR, right right lane better!" << endl;
+    		d_goal[0] += 8.0;
+    		CAR_STATE[1] = get_lane_num(d_goal[0], td);
+    	} else {
+    		next_st = _CS_KL;
+    		cout << "nothing changed, keep going!" << endl;
+		}
     }
 	// end of TODO
 	
